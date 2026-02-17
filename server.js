@@ -1,20 +1,19 @@
 const express = require("express");
 const mysql = require("mysql2");
-const bcrypt = require("bcryptjs");
-const bodyParser = require("body-parser");
-const cors = require("cors");
 
 const app = express();
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
 
-// 🔵 Connect to MySQL
 const db = mysql.createConnection({
     host: "localhost",
-    user: "root",               // your MySQL username
-    password: "w3irdMark75",  // your MySQL password
-    database: "login_system"    // the database you created
+    user: "root",
+    password: "w3irdMark75",
+    database: "login_system"
+});
+const path = require("path");
+
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "registration.html"));
 });
 
 db.connect((err) => {
@@ -22,46 +21,32 @@ db.connect((err) => {
         console.error("Database connection failed:", err);
         return;
     }
-    console.log("Connected to MySQL");
+    console.log("Connected to MySQL!");
 });
 
-// ✅ Register Route
-app.post("/register", async (req, res) => {
+app.post("/register", (req, res) => {
+    console.log("Register route hit");
+    console.log("Data received:", req.body);
+
     const { username, email, password } = req.body;
 
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const sql = "INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
-        db.query(sql, [username, email, hashedPassword], (err, result) => {
-            if (err) {
-                return res.status(400).json({ error: "User already exists" });
-            }
-            res.json({ message: "User registered successfully" });
-        });
-    } catch (error) {
-        res.status(500).json({ error: "Server error" });
+    if (!username || !email || !password) {
+        return res.status(400).json({ error: "All fields are required" });
     }
-});
 
-// ✅ Login Route
-app.post("/login", (req, res) => {
-    const { username, password } = req.body;
+    const query = "INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
 
-    const sql = "SELECT * FROM users WHERE username = ?";
-    db.query(sql, [username], async (err, results) => {
-        if (err) return res.status(500).json({ error: "Server error" });
-        if (results.length === 0) return res.status(400).json({ error: "User not found" });
+    db.query(query, [username, email, password], (err, result) => {
+        if (err) {
+            console.error("Error inserting data:", err);
+            return res.status(500).json({ error: "Database error" });
+        }
 
-        const user = results[0];
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) return res.status(400).json({ error: "Invalid password" });
-
-        res.json({ message: "Login successful" });
+        console.log("User inserted successfully");
+        return res.json({ message: "Registration successful!" });
     });
 });
 
-// Start server
 app.listen(5000, () => {
     console.log("Server running on port 5000");
 });
